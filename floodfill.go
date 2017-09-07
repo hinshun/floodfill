@@ -49,7 +49,7 @@ func (e ErrVisit) Error() string {
 
 type floodfiller struct {
 	wg         sync.WaitGroup
-	tokenCh    chan struct{}
+	permitCh   chan struct{}
 	errCh      chan ErrVisit
 	visitLock  sync.Mutex
 	visitQueue []Node
@@ -63,14 +63,14 @@ type floodfiller struct {
 // the given parallelism limit.
 func Floodfill(nodes []Node, parallelism int) error {
 	f := &floodfiller{
-		errCh:   make(chan ErrVisit),
-		tokenCh: make(chan struct{}, parallelism),
-		visited: make(map[Node]struct{}),
+		errCh:    make(chan ErrVisit),
+		permitCh: make(chan struct{}, parallelism),
+		visited:  make(map[Node]struct{}),
 	}
-	defer close(f.tokenCh)
+	defer close(f.permitCh)
 
 	for i := 0; i < parallelism; i++ {
-		f.tokenCh <- struct{}{}
+		f.permitCh <- struct{}{}
 	}
 
 	for _, node := range nodes {
@@ -135,9 +135,10 @@ func (f *floodfiller) visitNext() error {
 		return nil
 	}
 
-	<-f.tokenCh
+	// Wait for a parallelism permit to perform work.
+	<-f.permitCh
 	defer func() {
-		f.tokenCh <- struct{}{}
+		f.permitCh <- struct{}{}
 	}()
 
 	err := node.Visit()
