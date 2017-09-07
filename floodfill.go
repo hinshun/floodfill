@@ -49,6 +49,7 @@ func (e ErrVisit) Error() string {
 
 type floodfiller struct {
 	wg         sync.WaitGroup
+	tokenCh    chan struct{}
 	errCh      chan ErrVisit
 	visitLock  sync.Mutex
 	visitQueue []Node
@@ -58,11 +59,18 @@ type floodfiller struct {
 // Floodfill determines the areas connected to a given list of nodes.
 // Neighboring nodes are all visited in parallel, which is particularly useful
 // if visiting and computing the node's neighbors is expensive or latency
-// bound.
-func Floodfill(nodes []Node) error {
+// bound. The number of goroutines spawned by floodfill can be limited by
+// the given parallelism limit.
+func Floodfill(nodes []Node, parallelism int) error {
 	f := &floodfiller{
 		errCh:   make(chan ErrVisit),
+		tokenCh: make(chan struct{}, parallelism),
 		visited: make(map[Node]struct{}),
+	}
+	defer close(f.tokenCh)
+
+	for i := 0; i < parallelism; i++ {
+		f.tokenCh <- struct{}{}
 	}
 
 	for _, node := range nodes {
@@ -121,10 +129,16 @@ func (f *floodfiller) dequeue() (Node, bool) {
 
 func (f *floodfiller) visitNext() error {
 	defer f.wg.Done()
+
 	node, ok := f.dequeue()
 	if ok {
 		return nil
 	}
+
+	<-f.tokenCh
+	defer func() {
+		f.tokenCh <- struct{}{}
+	}()
 
 	err := node.Visit()
 	if err != nil {

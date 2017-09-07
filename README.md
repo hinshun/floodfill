@@ -43,7 +43,7 @@ tiles := []Node{
   &Tile{X: 6, Y: 9},
 }
 
-err := floodfill.Floodfill(tiles)
+err := floodfill.Floodfill(tiles, 50)
 if err != nil {
   // In cases where errors are intermittent, like API throttling, you can rerun
   // floodfill on errored nodes.

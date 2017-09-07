@@ -164,7 +164,7 @@ x#x`,
 	} {
 		g := parseGrid(testcase.initial)
 
-		err := Floodfill(g.startingNodes())
+		err := Floodfill(g.startingNodes(), 1)
 		if err != nil {
 			t.Errorf("Expected no error to have occured: %s", err)
 		}
