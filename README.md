@@ -3,6 +3,7 @@
 Parallel floodfill implementation for Go
 
 [![Build Status](https://travis-ci.org/hinshun/floodfill.svg?branch=master)](https://travis-ci.org/hinshun/floodfill)
+[![GoDoc](https://godoc.org/github.com/hinshun/floodfill?status.svg)](https://godoc.org/github.com/hinshun/floodfill)
 
 The [Flood fill](https://en.wikipedia.org/wiki/Flood_fill) algorithm is used to find the connected components of a graph. For example, it is used to "bucket" fill areas of similarly colored areas of a paint program.
 
