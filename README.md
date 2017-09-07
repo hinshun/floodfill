@@ -13,7 +13,7 @@ For graphs where edges are not known ahead of time, or have nodes that have to b
 
 ## Implement `Node` interface
 
-```
+```go
 type Tile struct {
   X int
   Y int
@@ -34,13 +34,15 @@ func (t *Tile) GetNeighbors() ([]Node, error) {
 ```
 
 ## Call `Floodfill` function
-```
+
+```go
 // We know the coordinates of the starting tiles but no metadata about the tile
 // or about its neighbors.
 tiles := []Node{
   &Tile{X: 12, Y: 5},
   &Tile{X: 6, Y: 9},
 }
+
 err := floodfill.Floodfill(tiles)
 if err != nil {
   // In cases where errors are intermittent, like API throttling, you can rerun
