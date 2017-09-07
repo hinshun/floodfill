@@ -1,3 +1,7 @@
+/*
+Package floodfill provides an implementation of a parallel flood fill algorithm
+of lazily loaded nodes.
+*/
 package floodfill
 
 import (
@@ -10,14 +14,19 @@ type Node interface {
 	// Visit marks the node as visited, allowing the node to be lazily loaded
 	// from an external source.
 	Visit() error
+
 	// GetNeighbors retrieves the nodes that are directly connected with the node.
 	GetNeighbors() ([]Node, error)
 }
 
+// ErrFloodfill is returned if any of the visited nodes returned an error
+// upon visited or getting its neighbors.
 type ErrFloodfill struct {
 	Visits []ErrVisit
 }
 
+// Error returns the joined error strings of its visited nodes that errored
+// during floodfill.
 func (e ErrFloodfill) Error() string {
 	var errs []string
 	for _, visit := range e.Visits {
@@ -26,11 +35,14 @@ func (e ErrFloodfill) Error() string {
 	return strings.Join(errs, ", ")
 }
 
+// ErrVisit is a wrapper of the node visited and the error returned from
+// either visiting the node or getting its neighbors.
 type ErrVisit struct {
 	Node Node
 	Err  error
 }
 
+// Error returns the error of the visited node.
 func (e ErrVisit) Error() string {
 	return e.Err.Error()
 }
