@@ -104,6 +104,30 @@ x`,
 		},
 		{
 			initial: `
+@@`,
+			expected: `
+xx`,
+		},
+		{
+			initial: `
+.#
+#@`,
+			expected: `
+.#
+#x`,
+		},
+		{
+			initial: `
+...
+.@.
+...`,
+			expected: `
+xxx
+xxx
+xxx`,
+		},
+		{
+			initial: `
 .#.
 .#@
 .#.`,
@@ -121,6 +145,20 @@ x`,
 x#x
 x#x
 x#x`,
+		},
+		{
+			initial: `
+#####
+#...#
+#.#.#
+#.@.#
+#####`,
+			expected: `
+#####
+#xxx#
+#x#x#
+#xxx#
+#####`,
 		},
 	} {
 		g := parseGrid(testcase.initial)
