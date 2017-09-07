@@ -1,6 +1,7 @@
 package floodfill
 
 import (
+	"strings"
 	"sync"
 )
 
@@ -8,13 +9,35 @@ import (
 type Node interface {
 	// Visit marks the node as visited, allowing the node to be lazily loaded
 	// from an external source.
-	Visit()
+	Visit() error
 	// GetNeighbors retrieves the nodes that are directly connected with the node.
-	GetNeighbors() []Node
+	GetNeighbors() ([]Node, error)
+}
+
+type ErrFloodfill struct {
+	Visits []ErrVisit
+}
+
+func (e ErrFloodfill) Error() string {
+	var errs []string
+	for _, visit := range e.Visits {
+		errs = append(errs, visit.Error())
+	}
+	return strings.Join(errs, ", ")
+}
+
+type ErrVisit struct {
+	Node Node
+	Err  error
+}
+
+func (e ErrVisit) Error() string {
+	return e.Err.Error()
 }
 
 type floodfiller struct {
 	wg         sync.WaitGroup
+	errCh      chan ErrVisit
 	visitLock  sync.Mutex
 	visitQueue []Node
 	visited    map[Node]struct{}
@@ -24,15 +47,31 @@ type floodfiller struct {
 // Neighboring nodes are all visited in parallel, which is particularly useful
 // if visiting and computing the node's neighbors is expensive or latency
 // bound.
-func Floodfill(nodes []Node) {
+func Floodfill(nodes []Node) error {
 	f := &floodfiller{
+		errCh:   make(chan ErrVisit),
 		visited: make(map[Node]struct{}),
 	}
 
 	for _, node := range nodes {
 		f.enqueue(node)
 	}
+
+	var errs []ErrVisit
+	go func() {
+		for err := range f.errCh {
+			errs = append(errs, err)
+		}
+	}()
+
 	f.wg.Wait()
+	close(f.errCh)
+
+	if len(errs) > 0 {
+		return ErrFloodfill{errs}
+	}
+
+	return nil
 }
 
 func (f *floodfiller) enqueue(node Node) {
@@ -42,7 +81,15 @@ func (f *floodfiller) enqueue(node Node) {
 	// Add node to visit queue and fire off goroutine to visit.
 	f.visitQueue = append(f.visitQueue, node)
 	f.wg.Add(1)
-	go f.visitNext()
+	go func() {
+		err := f.visitNext()
+		if err != nil {
+			f.errCh <- ErrVisit{
+				Node: node,
+				Err:  err,
+			}
+		}
+	}()
 }
 
 func (f *floodfiller) dequeue() (Node, bool) {
@@ -60,16 +107,25 @@ func (f *floodfiller) dequeue() (Node, bool) {
 	return node, ok
 }
 
-func (f *floodfiller) visitNext() {
+func (f *floodfiller) visitNext() error {
 	defer f.wg.Done()
 	node, ok := f.dequeue()
 	if ok {
-		return
+		return nil
 	}
 
-	node.Visit()
-	neighbors := node.GetNeighbors()
+	err := node.Visit()
+	if err != nil {
+		return err
+	}
+
+	neighbors, err := node.GetNeighbors()
+	if err != nil {
+		return err
+	}
+
 	for _, neighbor := range neighbors {
 		f.enqueue(neighbor)
 	}
+	return nil
 }

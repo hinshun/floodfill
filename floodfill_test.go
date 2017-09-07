@@ -70,11 +70,12 @@ type tile struct {
 	y      int
 }
 
-func (t *tile) Visit() {
+func (t *tile) Visit() error {
 	t.symbol = fill
+	return nil
 }
 
-func (t *tile) GetNeighbors() []Node {
+func (t *tile) GetNeighbors() ([]Node, error) {
 	var neighbors []Node
 	if t.y-1 >= 0 && t.grid.tiles[t.y-1][t.x].symbol != wall {
 		neighbors = append(neighbors, t.grid.tiles[t.y-1][t.x])
@@ -88,7 +89,7 @@ func (t *tile) GetNeighbors() []Node {
 	if t.x+1 < len(t.grid.tiles[0]) && t.grid.tiles[t.y][t.x+1].symbol != wall {
 		neighbors = append(neighbors, t.grid.tiles[t.y][t.x+1])
 	}
-	return neighbors
+	return neighbors, nil
 }
 
 func TestFloodfill(t *testing.T) {
@@ -163,7 +164,11 @@ x#x`,
 	} {
 		g := parseGrid(testcase.initial)
 
-		Floodfill(g.startingNodes())
+		err := Floodfill(g.startingNodes())
+		if err != nil {
+			t.Errorf("Expected no error to have occured: %s", err)
+		}
+
 		actual := g.toAscii()
 		if testcase.expected != actual {
 			t.Errorf(`
