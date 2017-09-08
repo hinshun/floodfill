@@ -106,6 +106,8 @@ func (f *floodfiller) enqueue(node Node) {
 	if ok {
 		return
 	}
+	// Mark node as visited.
+	f.visited[node.GetID()] = struct{}{}
 
 	// Add node to visit queue and fire off goroutine to visit.
 	f.visitQueue = append(f.visitQueue, node)
@@ -128,9 +130,6 @@ func (f *floodfiller) dequeue() Node {
 	// Dequeue the next node.
 	node := f.visitQueue[0]
 	f.visitQueue = f.visitQueue[1:]
-
-	// Mark node as visited.
-	f.visited[node.GetID()] = struct{}{}
 
 	return node
 }

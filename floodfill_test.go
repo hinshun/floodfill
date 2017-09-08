@@ -3,6 +3,7 @@ package floodfill
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -14,14 +15,18 @@ const (
 )
 
 type grid struct {
-	tiles  [][]*tile
-	starts []Node
+	visitLock sync.Mutex
+	visited   map[string]struct{}
+	tiles     [][]*tile
+	starts    []Node
 }
 
 func parseGrid(ascii string) *grid {
 	rows := strings.Split(ascii, "\n")
 
-	g := &grid{}
+	g := &grid{
+		visited: make(map[string]struct{}),
+	}
 	offset := 0
 	for y, row := range rows {
 		if len(row) == 0 {
@@ -76,6 +81,15 @@ func (t *tile) GetID() string {
 }
 
 func (t *tile) Visit() error {
+	t.grid.visitLock.Lock()
+	defer t.grid.visitLock.Unlock()
+
+	_, ok := t.grid.visited[t.GetID()]
+	if ok {
+		return fmt.Errorf("tile %s visited before", t.GetID())
+	}
+	t.grid.visited[t.GetID()] = struct{}{}
+
 	t.symbol = fill
 	return nil
 }
@@ -171,7 +185,9 @@ x#x`,
 
 		err := Floodfill(g.startingNodes(), 4)
 		if err != nil {
-			t.Errorf("Expected no error to have occured: %s", err)
+			t.Errorf(`
+Expected: %s
+But error has occured: %s`, testcase.expected, err)
 		}
 
 		actual := g.toAscii()
