@@ -1,6 +1,7 @@
 package floodfill
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -68,6 +69,10 @@ type tile struct {
 	symbol rune
 	x      int
 	y      int
+}
+
+func (t *tile) GetID() string {
+	return fmt.Sprintf("(%d,%d)", t.x, t.y)
 }
 
 func (t *tile) Visit() error {

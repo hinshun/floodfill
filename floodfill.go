@@ -11,6 +11,9 @@ import (
 
 // Node is a node in a directed graph which are 'filled' as they are visited.
 type Node interface {
+	// GetID returns a unique id to determine whether it has been visited.
+	GetID() string
+
 	// Visit marks the node as visited, allowing the node to be lazily loaded
 	// from an external source.
 	Visit() error
@@ -53,7 +56,7 @@ type floodfiller struct {
 	errCh      chan ErrVisit
 	visitLock  sync.Mutex
 	visitQueue []Node
-	visited    map[Node]struct{}
+	visited    map[string]struct{}
 }
 
 // Floodfill determines the areas connected to a given list of nodes.
@@ -65,7 +68,7 @@ func Floodfill(nodes []Node, parallelism int) error {
 	f := &floodfiller{
 		errCh:    make(chan ErrVisit),
 		permitCh: make(chan struct{}, parallelism),
-		visited:  make(map[Node]struct{}),
+		visited:  make(map[string]struct{}),
 	}
 	defer close(f.permitCh)
 
@@ -98,6 +101,12 @@ func (f *floodfiller) enqueue(node Node) {
 	f.visitLock.Lock()
 	defer f.visitLock.Unlock()
 
+	// If node has been visited, don't add it to the visit queue.
+	_, ok := f.visited[node.GetID()]
+	if ok {
+		return
+	}
+
 	// Add node to visit queue and fire off goroutine to visit.
 	f.visitQueue = append(f.visitQueue, node)
 	f.wg.Add(1)
@@ -112,7 +121,7 @@ func (f *floodfiller) enqueue(node Node) {
 	}()
 }
 
-func (f *floodfiller) dequeue() (Node, bool) {
+func (f *floodfiller) dequeue() Node {
 	f.visitLock.Lock()
 	defer f.visitLock.Unlock()
 
@@ -120,20 +129,14 @@ func (f *floodfiller) dequeue() (Node, bool) {
 	node := f.visitQueue[0]
 	f.visitQueue = f.visitQueue[1:]
 
-	// Check whether node has been visited before and mark as visited.
-	_, ok := f.visited[node]
-	f.visited[node] = struct{}{}
+	// Mark node as visited.
+	f.visited[node.GetID()] = struct{}{}
 
-	return node, ok
+	return node
 }
 
 func (f *floodfiller) visitNext() error {
 	defer f.wg.Done()
-
-	node, ok := f.dequeue()
-	if ok {
-		return nil
-	}
 
 	// Wait for a parallelism permit to perform work.
 	<-f.permitCh
@@ -141,6 +144,7 @@ func (f *floodfiller) visitNext() error {
 		f.permitCh <- struct{}{}
 	}()
 
+	node := f.dequeue()
 	err := node.Visit()
 	if err != nil {
 		return err
